@@ -1,6 +1,7 @@
 import tkinter
 import random
 import numpy
+import queue
 
 class Node:
 	def __init__(self, pos, p, d=False, i=False):
@@ -9,6 +10,8 @@ class Node:
 		self.position = pos
 		self.linked = []
 		self.parent = p
+
+		self.tag = False
 
 def get_random_cell(m, n):
 	"""
@@ -144,12 +147,44 @@ def generate_graph(i, j, parent, vwalls, hwalls):
 		head.linked.append(generate_graph(cell[0], cell[1], head, vwalls, hwalls))
 	return head
 
+def search(head, target):
+	"""
+		Search for a specific node in the graph
+	"""
+
+	# Search for target in graph
+	if head.position == target:
+		return head
+
+	for node in head.linked:
+		res = search(node, target)
+		if res != None:
+			return res
+
+	return None
+
+def backtrace(head, target):
+	"""
+		Search for the node and backtrace to the parent
+		and store the path followed
+	"""
+	
+	node = search(head, target)
+
+	path = []
+	p = node.parent
+	while p != None:
+		path.append(p.position)
+		p = p.parent
+
+	return path
+
 def draw_maze(vwalls, hwalls, block=50):
 	"""
 		Draw maze (tkinter API)
 	"""
 
-	# Show initial and end point
+	# Define start & end point
 	ix, iy = get_random_cell(WIDTH, HEIGHT)
 	fx, fy = get_random_cell(WIDTH, HEIGHT)
 	surface.create_rectangle(
@@ -160,7 +195,20 @@ def draw_maze(vwalls, hwalls, block=50):
 		fx * block, fy * block, (fx + 1) * block, (fy + 1) * block, 
 		fill="red", outline="red"
 	)
-	
+
+	# Generate graph
+	head = generate_graph(ix, iy, None, vwalls, hwalls)
+
+	# Find path & draw
+	path = backtrace(head, (fx, fy))
+	for pos in path[:-1]:
+		i, j = pos
+		surface.create_rectangle(i * block , j * block, (i + 1) * block, (j + 1) * block,
+			fill="yellow", outline="yellow")
+
+	# Draw graph
+	draw_graph_node(surface, head)
+
 	# Draw vertical walls
 	for i in range(vwalls.shape[0]):
 		for j in range(vwalls.shape[1]):
@@ -174,10 +222,6 @@ def draw_maze(vwalls, hwalls, block=50):
 			if hwalls[i][j] == 1:
 				o = (i * block, (j + 1) * block)
 				surface.create_line(o[0], o[1], o[0] + block, o[1], width=2)
-
-	# Generate and draw the maze's graph
-	head = generate_graph(ix, iy, None, vwalls, hwalls)
-	draw_graph_node(surface, head)
 
 def draw_graph_node(surface, node):
 	"""
@@ -217,9 +261,9 @@ def reload_maze(event):
 
 
 # Maze parameters
-BLOCK_SIZE = 25
-WIDTH = 20
-HEIGHT = 20
+BLOCK_SIZE = 20
+WIDTH = 25
+HEIGHT = 25
 
 # Generate initial maze
 v, h = generate_maze(WIDTH, HEIGHT)
